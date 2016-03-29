@@ -1,10 +1,11 @@
+var os = require('os');
 var http = require('http');
 var Botkit = require('botkit');
 var _ = require('underscore');
 var controller = Botkit.slackbot();
 
 var freeze = controller.spawn({
-  token: process.env.token
+  token: process.env.freezetoken
 });
 freeze.startRTM(function(err,bot,payload) {
   if (err) {
@@ -28,10 +29,28 @@ var requestConfig = [
 
 function uptime(bot, message) {
     var hostname = os.hostname();
-    var uptime = format.uptime(process.uptime());
+    var uptime = uptimeFormat(process.uptime());
     
     var msg = ':robot_face: I am a bot that has been running for ' + uptime + ' on ' + hostname + ".\n";
     bot.reply(message, msg);
+}
+
+function uptimeFormat(uptime) {
+    var unit = 'second';
+    if (uptime > 60) {
+        uptime = uptime / 60;
+        unit = 'minute';
+    }
+    if (uptime > 60) {
+        uptime = uptime / 60;
+        unit = 'hour';
+    }
+    if (uptime !== 1) {
+        unit = unit + 's';
+    }
+
+    uptime = uptime + ' ' + unit;
+    return uptime;
 }
 
 function didNotUnderstand(bot, message) {
