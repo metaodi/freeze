@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Freeze</title>
+        <script language="javascript">
+            var connection = new WebSocket('ws://localhost:8080', 'echo-protocol');
+            // When the connection is open, send some data to the server
+            connection.onopen = function () {
+                connection.send('Ping'); // Send the message 'Ping' to the server
+            };
+
+            // Log errors
+            connection.onerror = function (error) {
+                console.log('WebSocket Error ' + error);
+            };
+
+            // Log messages from the server
+            connection.onmessage = function (e) {
+                var data;
+                try {
+                    data = JSON.parse(e.data);
+                } catch(err) {
+                    console.log("Could not parse JSON:", e.data);
+                    return;
+                }
+                console.log('Server: ', data);
+                if ('file' in data) {
+                    var img = document.createElement("img");
+                    img.src = data.file.thumb_1024;
+
+                    var content = document.getElementById('content');
+                    content.appendChild(img);
+                }
+                
+            };
+        </script>
+    </head>
+
+    <body>
+        <h1>Content</h1>
+        <div id="content"></div>
+    </body>
+</html>

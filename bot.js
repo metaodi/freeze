@@ -39,29 +39,91 @@ function uptimeFormat(uptime) {
     return uptime;
 }
 
-function didNotUnderstand(bot, message) {
-    var msg = 'Sorry, I did not understand you.' + "\n";
-    bot.reply(message, msg);
-}
-
-
+// answer direct questions with a generic uptime message
 controller.hears(['.*'], ['direct_message,direct_mention'], function(bot, message) {
-    var noAnswer = _.every(requestConfig, function(request) {
-        var matched = _.any(request.pattern, matcher(message.text));
-        if (matched) {
-            request.answerFn(bot, message);
-            return false; //break out of every()
-        }
-        return true; // continue with next requestConfig
-    });
-    if (noAnswer) {
-        didNotUnderstand(bot, message);
-    }
+    uptime(bot, message);
 });
 
+controller.on('ambient', function(bot, message) {
+    if (message.type === 'file_shared') {
+        console.log("File has been shared!");
+    }
+    console.dir(message);
+});
 
-// To keep Heroku's free dyno awake
+controller.on('message_received', function(bot, message) {
+    if (message.type === 'file_shared') {
+        console.log("File has been shared!");
+        sendToClient(message); 
+    }
+    console.dir(message);
+});
+
+// serve the client page
+var fs = require('fs');
+var index = fs.readFileSync('index.html');
 http.createServer(function(request, response) {
-    response.writeHead(200, {'Content-Type': 'text/plain'});
-    response.end('Ok, dyno is awake.');
+    response.writeHead(200, {'Content-Type': 'text/html'});
+    response.end(index);
 }).listen(process.env.PORT || 5000);
+
+// websocket server
+var WebSocketServer = require('websocket').server;
+var http = require('http');
+
+var server = http.createServer(function(request, response) {
+    console.log((new Date()) + ' Received request for ' + request.url);
+    response.writeHead(404);
+    response.end();
+});
+server.listen(8080, function() {
+    console.log((new Date()) + ' Server is listening on port 8080');
+});
+
+wsServer = new WebSocketServer({
+    httpServer: server,
+    // You should not use autoAcceptConnections for production
+    // applications, as it defeats all standard cross-origin protection
+    // facilities built into the protocol and the browser.  You should
+    // *always* verify the connection's origin and decide whether or not
+    // to accept it.
+    autoAcceptConnections: false
+});
+
+function originIsAllowed(origin) {
+  // put logic here to detect whether the specified origin is allowed.
+  return true;
+}
+
+var connection;
+
+wsServer.on('request', function(request) {
+    if (!originIsAllowed(request.origin)) {
+      // Make sure we only accept requests from an allowed origin
+      request.reject();
+      console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
+      return;
+    }
+
+    connection = request.accept('echo-protocol', request.origin);
+    console.log((new Date()) + ' Connection accepted.');
+    connection.on('message', function(message) {
+        if (message.type === 'utf8') {
+            console.log('Received Message: ' + message.utf8Data);
+            connection.sendUTF(message.utf8Data);
+        }
+        else if (message.type === 'binary') {
+            console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
+            connection.sendBytes(message.binaryData);
+        }
+    });
+    connection.on('close', function(reasonCode, description) {
+        console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
+    });
+});
+
+function sendToClient(jsonData) {
+    if (connection && connection.connected) {
+        connection.sendUTF(JSON.stringify(jsonData));
+    }
+}
