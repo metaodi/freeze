@@ -13,20 +13,6 @@ freeze.startRTM(function(err,bot,payload) {
   }
 });
 
-function matcher(text) {
-    return function(pattern) {
-        var re = new RegExp(pattern, 'i');
-        return re.test(text);
-    };
-}
-
-var requestConfig = [
-    {
-        'pattern': ['hi', 'hello', 'hey', 'uptime', 'identify yourself', 'who are you', 'what is your name', 'what do you do', 'can you help me'],
-        'answerFn': uptime
-    },
-];
-
 function uptime(bot, message) {
     var hostname = os.hostname();
     var uptime = uptimeFormat(process.uptime());
